@@ -677,16 +677,19 @@ bool Ekf::resetMagHeading(const Vector3f &mag_init, bool increase_yaw_var, bool 
 	Dcmf R_to_earth_after(quat_after_reset);
 	_state.mag_I = R_to_earth_after * mag_init;
 
-	// reset the corresponding rows and columns in the covariance matrix and set the variances on the magnetic field states to the measurement variance
-	clearMagCov();
+	if (!_mag_bias_converged_yaw_reset_req)
+	{
+		// reset the corresponding rows and columns in the covariance matrix and set the variances on the magnetic field states to the measurement variance
+		clearMagCov();
 
-	if (_control_status.flags.mag_3D) {
-		for (uint8_t index = 16; index <= 21; index ++) {
-			P[index][index] = sq(_params.mag_noise);
+		if (_control_status.flags.mag_3D) {
+			for (uint8_t index = 16; index <= 21; index ++) {
+				P[index][index] = sq(_params.mag_noise);
+			}
+
+			// save covariance data for re-use when auto-switching between heading and 3-axis fusion
+			saveMagCovData();
 		}
-
-		// save covariance data for re-use when auto-switching between heading and 3-axis fusion
-		saveMagCovData();
 	}
 
 	// record the time for the magnetic field alignment event

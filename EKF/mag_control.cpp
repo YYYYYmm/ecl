@@ -90,6 +90,7 @@ void Ekf::controlMagFusion()
 		checkMagInhibition();
 
 		runMagAndMagDeclFusions();
+		checkMagBiasConvergence();
 	}
 }
 
@@ -308,9 +309,7 @@ void Ekf::processMagResetFlags()
 		}
 
 		if (!has_realigned_yaw && canResetMagHeading()) {
-			has_realigned_yaw = _control_status.flags.yaw_align
-					    ? resetMagHeading(_mag_lpf.getState()) // standard reset
-					    : resetMagHeading(_mag_lpf.getState(), true, false); // initial alignement
+			has_realigned_yaw = resetMagHeading(_mag_lpf.getState(), shouldIncreaseYawVar(), shouldUpdateBuffer());
 		}
 
 		if (has_realigned_yaw) {
@@ -324,7 +323,23 @@ bool Ekf::isYawResetRequested() const
 	return _mag_yaw_reset_req ||
 	       _mag_inhibit_yaw_reset_req ||
 	       _in_flight_yaw_reset_req ||
+	        _mag_bias_converged_yaw_reset_req ||
 	       !_control_status.flags.yaw_align;
+}
+
+bool Ekf::shouldIncreaseYawVar() const
+{
+	// TODO: We always increase the yaw variance after a yaw reset,
+	// do we really want that? If not we can remove the argument.
+	return true;
+}
+
+bool Ekf::shouldUpdateBuffer() const
+{
+	return _mag_yaw_reset_req ||
+	       _mag_inhibit_yaw_reset_req ||
+	       _in_flight_yaw_reset_req ||
+	       _mag_bias_converged_yaw_reset_req;
 }
 
 void Ekf::runPostAlignmentActions()
@@ -335,6 +350,11 @@ void Ekf::runPostAlignmentActions()
 	if (_in_flight_yaw_reset_req) {
 		_control_status.flags.mag_aligned_in_flight = true;
 		_in_flight_yaw_reset_req = false;
+	}
+
+	if (_mag_bias_converged_yaw_reset_req) {
+		_control_status.flags.mag_unbiased_align = true;
+		_mag_bias_converged_yaw_reset_req = false;
 	}
 
 	// Handle the special case where we have not been constraining yaw drift or learning yaw bias due
@@ -378,3 +398,30 @@ void Ekf::run3DMagAndDeclFusions()
 	}
 }
 
+void Ekf::checkMagBiasConvergence()
+{
+	if (!_control_status.flags.mag_3D) {
+		return;
+	}
+
+	if (hasMagBiasConverged()) {
+		if (!_control_status.flags.mag_unbiased_align) {
+			// We just learned the mag biases, reset to the corrected values
+			// in case we have a strong yaw error
+			_mag_bias_converged_yaw_reset_req = true;
+		}
+
+	} else {
+		// The flag need to be cleared if the state uncertenty increased
+		// to allow for a new reset when they converge again
+		_control_status.flags.mag_unbiased_align = false;
+	}
+}
+
+bool Ekf::hasMagBiasConverged() const
+{
+	return (P[19][19] < 2e-4f)
+		&& (P[20][20] < 2e-4f)
+		&& ((P[19][19] + P[20][20] + P[21][21]) > 1e-10f);
+
+}

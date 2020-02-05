@@ -464,6 +464,7 @@ union filter_control_status_u {
 		uint32_t mag_aligned_in_flight   : 1; ///< 23 - true when the in-flight mag field alignment has been completed
 		uint32_t ev_vel      : 1; ///< 24 - true when local earth frame velocity data from external vision measurements are being fused
 		uint32_t synthetic_mag_z : 1; ///< 25 - true when we are using a synthesized measurement for the magnetometer Z component
+		uint32_t mag_unbiased_align : 1; ///< 26 - true when mag field alignement with learned biases has been completed
 	} flags;
 	uint32_t value;
 };
