@@ -641,6 +641,8 @@ private:
 	void checkMagInhibition();
 	bool shouldInhibitMag() const;
 	void checkMagFieldStrength();
+	Vector3f getUnbiasedMagSampleDelayed() const;
+	Vector3f getUnbiasedMagSampleDelayedLpf() const;
 	bool isMagStrengthPlausible(float mag_strength) const;
 	bool isStrongMagneticDisturbance() const;
 	bool isMeasuredMatchingGpsMagStrength(float mag_strength) const;

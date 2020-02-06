@@ -258,12 +258,22 @@ bool Ekf::shouldInhibitMag() const
 void Ekf::checkMagFieldStrength()
 {
 	if (_params.check_mag_strength) {
-		_control_status.flags.mag_field_disturbed = isMagStrengthPlausible(_mag_sample_delayed.mag.length())
-							    && isMagStrengthPlausible(_mag_lpf.getState().length());
+		_control_status.flags.mag_field_disturbed = isMagStrengthPlausible(getUnbiasedMagSampleDelayed().length())
+							    && isMagStrengthPlausible(getUnbiasedMagSampleDelayedLpf().length());
 
 	} else {
 		_control_status.flags.mag_field_disturbed = false;
 	}
+}
+
+inline matrix::Vector3f Ekf::getUnbiasedMagSampleDelayed() const
+{
+	return _mag_sample_delayed.mag - _state.mag_B;
+}
+
+inline matrix::Vector3f Ekf::getUnbiasedMagSampleDelayedLpf() const
+{
+	return _mag_lpf.getState() - _state.mag_B;
 }
 
 bool Ekf::isMagStrengthPlausible(float mag_strength) const
@@ -309,7 +319,7 @@ void Ekf::processMagResetFlags()
 		}
 
 		if (!has_realigned_yaw && canResetMagHeading()) {
-			has_realigned_yaw = resetMagHeading(_mag_lpf.getState(), shouldIncreaseYawVar(), shouldUpdateBuffer());
+			has_realigned_yaw = resetMagHeading(getUnbiasedMagSampleDelayedLpf(), shouldIncreaseYawVar(), shouldUpdateBuffer());
 		}
 
 		if (has_realigned_yaw) {
