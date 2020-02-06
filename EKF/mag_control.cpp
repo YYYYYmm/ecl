@@ -44,6 +44,7 @@ void Ekf::controlMagFusion()
 	updateMagFilter();
 	checkMagFieldStrength();
 	processMagResetFlags();
+	runVelPosReset(); // TODO: move this somewhere else
 
 	// If we are on ground, store the local position and time to use as a reference
 	// Also reset the flight alignment flag so that the mag fields will be re-initialised next time we achieve flight altitude
@@ -305,7 +306,6 @@ void Ekf::processMagResetFlags()
 
 		if (canRealignYawUsingGps()) {
 			has_realigned_yaw = realignYawGPS();
-			runVelPosReset(); // TODO: move this somewhere else
 		}
 
 		if (!has_realigned_yaw && canResetMagHeading()) {
@@ -355,6 +355,7 @@ void Ekf::runPostAlignmentActions()
 	if (_mag_bias_converged_yaw_reset_req) {
 		_control_status.flags.mag_unbiased_align = true;
 		_mag_bias_converged_yaw_reset_req = false;
+		_velpos_reset_request = true;
 	}
 
 	// Handle the special case where we have not been constraining yaw drift or learning yaw bias due
